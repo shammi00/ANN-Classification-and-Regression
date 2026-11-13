@@ -4,23 +4,44 @@ import numpy as np
 import tensorflow as tf
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler
 import pickle
+from pathlib import Path
 
-# Load the trained model
-model = tf.keras.models.load_model('model.h5')
+
+
+st.set_page_config(
+    page_title="Bank Customer Churn Prediction",
+    page_icon="🏦",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Get the folder containing app.py
+BASE_DIR = Path(__file__).resolve().parent
+
+# Load the trained ANN model
+model = tf.keras.models.load_model(
+    str(BASE_DIR / "model.h5")
+)
 
 # Load the encoders and scaler
-
-with open('label_encoder_gender.pkl', 'rb') as f:
+with open(BASE_DIR / "label_encoder_gender.pkl", "rb") as f:
     label_encoder_gender = pickle.load(f)
 
-with open('onehot_encoder_geo.pkl', 'rb') as f:
+with open(BASE_DIR / "onehot_encoder_geo.pkl", "rb") as f:
     onehot_encoder_geo = pickle.load(f)
 
-with open('scaler.pkl', 'rb') as f:
+with open(BASE_DIR / "scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
 ## streamlit app
-st.title("Customer Churn Prediction")
+
+st.title("🏦 Bank Customer Churn Prediction")
+st.markdown(
+    "Predict whether a bank customer is likely to leave "
+    "using an Artificial Neural Network (ANN)."
+)
+st.divider()
+
 
 ## user input
 # age = st.number_input("Age", min_value=0, max_value=120, value=30)
@@ -34,17 +55,44 @@ st.title("Customer Churn Prediction")
 
 # user input
 
-# User input
-geography = st.selectbox('Geography', onehot_encoder_geo.categories_[0])
-gender = st.selectbox('Gender', label_encoder_gender.classes_)
-age = st.slider('Age', 18, 92)
-balance = st.number_input('Balance')
-credit_score = st.number_input('Credit Score')
-estimated_salary = st.number_input('Estimated Salary')
-tenure = st.slider('Tenure', 0, 10)
-num_of_products = st.slider('Number of Products', 1, 4)
-has_cr_card = st.selectbox('Has Credit Card', [0, 1])
-is_active_member = st.selectbox('Is Active Member', [0, 1])
+st.subheader("Customer Information")
+
+col1, col2 = st.columns(2, gap="large")
+
+with col1:
+    geography = st.selectbox(
+        "Geography", onehot_encoder_geo.categories_[0]
+    )
+    gender = st.selectbox(
+        "Gender", label_encoder_gender.classes_
+    )
+    age = st.slider("Age", 18, 92, 35)
+    credit_score = st.number_input(
+        "Credit Score", min_value=300,
+        max_value=850, value=650, step=1
+    )
+    tenure = st.slider("Tenure", 0, 10, 5)
+
+with col2:
+    balance = st.number_input(
+        "Account Balance", min_value=0.0,
+        value=50000.0, step=1000.0
+    )
+    estimated_salary = st.number_input(
+        "Estimated Salary", min_value=0.0,
+        max_value=200000.0, value=50000.0,
+        step=1000.0
+    )
+    num_of_products = st.slider(
+        "Number of Products", 1, 4, 2
+    )
+    has_cr_card = st.selectbox(
+        "Has Credit Card", [0, 1]
+    )
+    is_active_member = st.selectbox(
+        "Is Active Member", [0, 1]
+    )
+
 
 ## prepare the input data for prediction only for multiple samples
 # input_data = pd.DataFrame( {
@@ -82,11 +130,23 @@ input_data = scaler.transform(input_data)
 
 # Predict churn
 prediction = model.predict(input_data)
-st.write("Prediction probability:", prediction[0][0])
+# st.write("Prediction probability:", prediction[0][0])
 
-# Display the prediction result
-if st.button("Predict"):
-    if prediction[0][0] > 0.5:
+
+# Predict customer churn only when the button is clicked
+if st.button("Predict Customer Churn", type="primary"):
+
+    prediction = model.predict(input_data, verbose=0)
+    churn_probability = float(prediction[0][0])
+
+    st.subheader("Prediction Result")
+
+    st.metric(
+        "Churn Probability",
+        f"{churn_probability * 100:.2f}%"
+    )
+
+    if churn_probability > 0.5:
         st.error("The customer is likely to churn.")
     else:
         st.success("The customer is unlikely to churn.")
